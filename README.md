@@ -1,4 +1,5 @@
-# Marketplace Genie Channel Partner WooCommerce plug-in
+#  Marketplace Genie Channel Partner API
+## WooCommerce plug-in
 
 Marketplace Genie WooCommerce plugin for the Marketplace Genie Channel Partner API.
 
