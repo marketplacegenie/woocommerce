@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 /**
  * The plugin bootstrap file
@@ -16,7 +16,7 @@
  * Plugin Name:       Marketplacegenie API
  * Plugin URI:        https://www.marketplacegenie.co.za/app/woocommerce/
  * Description:       This plugin will seamlessly allow you to integrate your WooCommerce store with the Marketplace Genie platform and to Takealot Reseller Portal.
- * Version:           2.0.1
+ * Version:           2.0.5
  * Author:            Marketplacegenie (Pty) Ltd
  * Author URI:        https://www.marketplacegenie.co.za/app/woocommerce/
  * License:           GPL-2.0+
@@ -333,7 +333,7 @@ input:checked + .slider:before {
                 <h4>Please visit <a target="_blank" href="https://www.marketplacegenie.com/subscribe/marketplace/takealot/woocommerce">marketplacegenie.com/register</a> to obtain  your API key</h4>
                 <div id="wf-onboarding-license">
                  
-                 <input type="text" required placeholder="Enter API Key" id="registrationkey" name="marketplacegenie_api_key"  value="'.$marketplaceGenieApiKey.'" /></div>
+                 <input type="text" required placeholder="Enter API Key" id="registrationkeymodal" name="marketplacegenie_api_key"  value="'.$marketplaceGenieApiKey.'" /></div>
                 <div id="wf-onboarding-footer">
                     <ul>
                         <li>
@@ -355,10 +355,11 @@ input:checked + .slider:before {
 <script>
 function updatekey()
 {
-var tosend = document.getElementById("registrationkey").value;
+var tosend = document.getElementById("registrationkeymodal").value;
 var url = "admin.php?page=marketplacegenie&apikey="+ tosend;
+  console.error(url);
 window.location.href = url;
-  
+
 }
  function validate() {
         if (document.getElementById("remember").checked) {
@@ -372,13 +373,14 @@ window.location.href = url;
         if(isset($_GET['apikey']))
         {
             $mykey = $_GET['apikey'];
-           global $wpdb;
+            global $wpdb;
 
             $table_name  = $wpdb->prefix."options";
             $set = array('option_value' => $mykey);
             $condition = array('option_name' => 'marketplacegenie_api_key');
             $wpdb->update($table_name, $set, $condition);
-        echo '<meta http-equiv="refresh" content="0;url=admin.php?page=marketplacegenie" />';
+            update_option('marketplacegenie_api_key', $mykey);
+      echo '<meta http-equiv="refresh" content="0;url=admin.php?page=marketplacegenie" />';
         }
         $tab            =   "general";
         $notification   =   null;
@@ -441,7 +443,7 @@ EOD;
     <button type="button" class="notice-dismiss">
         <span class="screen-reader-text">Dismiss this notice.</span>
     </button>
-</div>
+</div> 
 EOD;
                     break;
             }
@@ -1549,7 +1551,7 @@ function marketplace_update($option , $value)
 {
     global $wpdb;
     $table = $wpdb->prefix.'marketplacegenie_settings';
-    $wpdb->query('TRUNCATE TABLE  '.$table);
+  //  $wpdb->query('TRUNCATE TABLE  '.$table);
     $data = array('option_name' => $option, 'option_value' => $value);
     $format = array('%s','%s');
     $wpdb->insert($table,$data,$format);
