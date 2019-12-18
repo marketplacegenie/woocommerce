@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 /**
  * The plugin bootstrap file
@@ -16,11 +16,7 @@
  * Plugin Name:       Marketplacegenie API
  * Plugin URI:        https://www.marketplacegenie.co.za/app/woocommerce/
  * Description:       This plugin will seamlessly allow you to integrate your WooCommerce store with the Marketplace Genie platform and to Takealot Reseller Portal.
-<<<<<<< HEAD
- * Version:           2.0.6
-=======
- * Version:           2.0.5
->>>>>>> 2232eafec2e521bc776e5d439812b7946d4a9a84
+ * Version:           2.0.1
  * Author:            Marketplacegenie (Pty) Ltd
  * Author URI:        https://www.marketplacegenie.co.za/app/woocommerce/
  * License:           GPL-2.0+
