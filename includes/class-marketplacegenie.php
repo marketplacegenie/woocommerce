@@ -470,57 +470,68 @@ class Marketplacegenie {
 
     public static function updateOffers()
     {
-        if (!Marketplacegenie::apiEnabled())
-        {return; }
+        if (!Marketplacegenie::apiEnabled()) {
+            return;
+        }
+
         logFile('================== Cron export start ==================');
         //$startScript = microtime(); // for work pseudo cron
 
-        $page       = get_option('marketplacegenie_cron_export_page') ?: 1;
-        $page_size  = 50;
+        $page = get_option('marketplacegenie_cron_export_page') ?: 1;
+        $page_size = 50;
         $count_pages = wp_count_posts('product');
         $total_pages = $count_pages->publish;
-        $pages=ceil((float) $total_pages / (float) $page_size);
+        $pages = ceil((float)$total_pages / (float)$page_size);
 
 
         try {
 
-            $posts = get_posts( array(
-                'numberposts'       => $page_size,
-                'offset'            => ($page-1)*$page_size,
-                'orderby'           => 'date',
-                'order'             => 'ASC',
-                'post_type'         => 'product',
-                'suppress_filters'  => true,
-            ) );
+            $posts = get_posts(array(
+                'numberposts' => $page_size,
+                'offset' => ($page - 1) * $page_size,
+                'orderby' => 'date',
+                'order' => 'ASC',
+                'post_type' => 'product',
+                'suppress_filters' => true,
+            ));
 
-            if ($posts && $page <= $pages)
-            {
+            if ($posts && $page <= $pages) {
                 logFile('------------------ Export offers. Page ' . $page . ' / ' . $pages . ' ------------------');
 
-                foreach( $posts as $post )
-                {
+                foreach ($posts as $post) {
                     $product = wc_get_product($post->ID);
 
+
                     $offerAttributes = array();
-                    $offerAttributes['price']          = $product->get_price();
-                    $offerAttributes['rrp']            = $product->get_regular_price();
-                    $offerAttributes['leadtime_days']  = 4;
+                    $offerAttributes['price'] = $product->get_price();
+                    $offerAttributes['rrp'] = $product->get_regular_price();
+                    $offerAttributes['leadtime_days'] = 4;
                     $offerAttributes['leadtime_stock'] = $product->get_stock_quantity();
-                    $offerAttributes['status']         = $product->get_status() == 'publish' ? 'Active' : 'Inactive';
-                    $offerAttributes['sku']            = $product->get_sku();
+                    $offerAttributes['status'] = $product->get_status() == 'publish' ? 'Active' : 'Inactive';
+                    $offerAttributes['sku'] = $product->get_sku();
                     //logFile('-------'.$offerAttributes['sku']);continue;
 
-                    if ($offerAttributes['sku'])
-                    {
-                        $result = self::apiUpdateOffer($offerAttributes, $product->get_sku());
-                        if (!$result) {
-                            logFile('Update product with SKU = ' . $product->get_sku() .' is failed');
+                            if ($offerAttributes['sku']) {
+                                $result = self::apiUpdateOffer($offerAttributes, $product->get_sku());
+                                if (!$result) {
+                                    logFile('Update product with SKU = ' . $product->get_sku() . ' is failed');
+
+                                }
+                            } else {
+                                logFile('Update product "' . $product->get_title() . '" id = ' . $product->get_id() . ' no have SKU');
+                            }
+
+
+                        if ($offerAttributes['sku']) {
+                            $result = self::apiUpdateOffer($offerAttributes, $product->get_sku());
+                            if (!$result) {
+                                logFile('Update product with SKU = ' . $product->get_sku() . ' is failed');
+                            }
+                        } else {
+                            logFile('Update product "' . $product->get_title() . '" id = ' . $product->get_id() . ' no have SKU');
                         }
-                    }
-                    else
-                    {
-                        logFile('Update product "' . $product->get_title() . '" id = ' . $product->get_id() . ' no have SKU');
-                    }
+
+
                 }
 
                 //Save data for next part export
@@ -533,17 +544,13 @@ class Marketplacegenie {
 
                 logFile('Update ' . count($posts) . ' products');
 
-                logFile('Updated marketplacegenie_cron_export_page -- ' .$cron_export_page. ' / ' . $pages);
-            }
-            else
-            {
+                logFile('Updated marketplacegenie_cron_export_page -- ' . $cron_export_page . ' / ' . $pages);
+            } else {
                 //Cron export success
 
                 self::marketplacegenie_remove_cron_export();
             }
-        }
-        catch (Exception $e)
-        {
+        } catch (Exception $e) {
             logFile('***************** Error export *****************');
         }
 
@@ -563,10 +570,10 @@ class Marketplacegenie {
     {
         if (!Marketplacegenie::apiEnabled())
         { return;  }
-
+        $MarketplacegenieTakealotTagExport = get_option('marketplacegenie_takealot_tag_export');
         //$key                    = 'AFT0655'; //test
         //$offerAttributes['sku'] = $key;      //test
-
+        logFile(' Marketplacegenie Takealot Tag Export  = ' . $MarketplacegenieTakealotTagExport);
         $result     =   false;
         $args       =   array(
             'method'    =>  'PATCH',
@@ -575,35 +582,77 @@ class Marketplacegenie {
                 "Content-type"  =>  'application/json' ),
             'body'      =>  json_encode($offerAttributes)
         );
+        $result = false;
+        $xid = wc_get_product_id_by_sku($key);
+        $product = wc_get_product($xid);
+        $current_tags = get_the_terms($xid, 'product_tag');
+        if ($MarketplacegenieTakealotTagExport = "on") {
+            logFile(' Marketplacegenie Takealot Tag Export Exists = ' . in_array("takealot", $current_tags));
+            if (in_array("takealot", $current_tags)) {
+                $result = wp_remote_request( self::URL . "/offers/{$key_type}{$key}", $args );
+                // logFile('apiUpdateOffer. Get ' . self::URL . "/offers/{$key_type}{$key}");
+                // if (!is_wp_error($result)) {
+                if (is_array($result) && array_key_exists('response', $result) && (intval($result['response']['code']) == 200)) {
 
-        $result = wp_remote_request( self::URL . "/offers/{$key_type}{$key}", $args );
-        // logFile('apiUpdateOffer. Get ' . self::URL . "/offers/{$key_type}{$key}");
-        // if (!is_wp_error($result)) {
-        if (is_array($result) && array_key_exists('response', $result) && (intval($result['response']['code']) == 200)) {
+
+                    $body = wp_remote_retrieve_body($result);
+                    $data = json_decode($body, true);
+                    $status = $data['status'];
+                    $sku = $key;
+                    if($status =="Success")
+                    {
+                        $offer = $data['offer'];
+                        $actions = $data['actions'];
+
+                        $message = "apiUpdateOffer   " . $status . "   ". $sku   .  "  ". implode(" ,  ",$actions) ;
+                    }
+                    else{
+                        $message = "apiUpdateOffer   " . $status . "   ". $sku   .  "  Failed" ;
+                    }
+
+                    logFile($message);
+                    $result = true;
+                }
+                else {
+                    $result = false;
+                    logFile('Update failed.. SKU = ' . $key);
+                }
 
 
-            $body = wp_remote_retrieve_body($result);
-            $data = json_decode($body, true);
-            $status = $data['status'];
-            $sku = $key;
-            if($status =="Success")
-            {
-                $offer = $data['offer'];
-                $actions = $data['actions'];
-
-                $message = "apiUpdateOffer   " . $status . "   ". $sku   .  "  ". implode(" ,  ",$actions) ;
             }
-            else{
-                $message = "apiUpdateOffer   " . $status . "   ". $sku   .  "  Failed" ;
-            }
+        } else {
+            $result = wp_remote_request( self::URL . "/offers/{$key_type}{$key}", $args );
+            // logFile('apiUpdateOffer. Get ' . self::URL . "/offers/{$key_type}{$key}");
+            // if (!is_wp_error($result)) {
+            if (is_array($result) && array_key_exists('response', $result) && (intval($result['response']['code']) == 200)) {
 
-            logFile($message);
-            $result = true;
+
+                $body = wp_remote_retrieve_body($result);
+                $data = json_decode($body, true);
+                $status = $data['status'];
+                $sku = $key;
+                if($status =="Success")
+                {
+                    $offer = $data['offer'];
+                    $actions = $data['actions'];
+
+                    $message = "apiUpdateOffer   " . $status . "   ". $sku   .  "  ". implode(" ,  ",$actions) ;
+                }
+                else{
+                    $message = "apiUpdateOffer   " . $status . "   ". $sku   .  "  Failed" ;
+                }
+
+                logFile($message);
+                $result = true;
+            }
+            else {
+                $result = false;
+                logFile('Update failed.. SKU = ' . $key);
+            }
         }
-        else {
-            $result = false;
-            logFile('Update failed. SKU = ' . $key);
-        }
+
+
+
         // }
         return $result;
     }

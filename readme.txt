@@ -49,7 +49,7 @@ Of course there is. Just contact us here: info@marketplacegenie.co.za
 == Screenshots ==
 
 1. Plugin Setup Page
-2. API Status 
+2. API Status
 
 == Changelog ==
 
@@ -58,7 +58,7 @@ Of course there is. Just contact us here: info@marketplacegenie.co.za
 
 = 2.0 =
 * Added Log Feature
-* Added Settings to Enable/Disable Price Updates 
+* Added Settings to Enable/Disable Price Updates
 * Added Settings to Enable/Disable SOH Updates
 * Added Settings to Enable/Disable Manual SOH Updates
 * Added Check API Feature
@@ -69,4 +69,4 @@ Of course there is. Just contact us here: info@marketplacegenie.co.za
 First Release
 
 = 2.0 =
-* Added Log Feature, Settings to Enable/Disable Price, SOH, Manual/Live Updates 
+* Added Log Feature, Settings to Enable/Disable Price, SOH, Manual/Live Updates

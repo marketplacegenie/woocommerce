@@ -379,7 +379,6 @@ window.location.href = url;
             $set = array('option_value' => $mykey);
             $condition = array('option_name' => 'marketplacegenie_api_key');
             $wpdb->update($table_name, $set, $condition);
-            update_option('marketplacegenie_api', "true");
             update_option('marketplacegenie_api_key', $mykey);
       echo '<meta http-equiv="refresh" content="0;url=admin.php?page=marketplacegenie" />';
         }
