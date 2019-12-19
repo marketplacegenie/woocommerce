@@ -573,7 +573,7 @@ class Marketplacegenie {
         $MarketplacegenieTakealotTagExport = get_option('marketplacegenie_takealot_tag_export');
         //$key                    = 'AFT0655'; //test
         //$offerAttributes['sku'] = $key;      //test
-        logFile(' Marketplacegenie Takealot Tag Export  = ' . $MarketplacegenieTakealotTagExport);
+
         $result     =   false;
         $args       =   array(
             'method'    =>  'PATCH',
@@ -584,11 +584,29 @@ class Marketplacegenie {
         );
         $result = false;
         $xid = wc_get_product_id_by_sku($key);
-        $product = wc_get_product($xid);
-        $current_tags = get_the_terms($xid, 'product_tag');
+        $imploedtags = "";
+        $current_tags = get_the_terms( $xid, 'product_tag' );
+        if ( $current_tags && ! is_wp_error( $current_tags ) ) {
+              foreach ($current_tags as $tag) {
+
+                $tag_title = $tag->name; // tag name
+                $tag_link = get_term_link( $tag );// tag archive link
+                $imploedtags = $imploedtags . $tag_title . " , ";
+             }
+         }
+        $current_tags =  strtolower( $imploedtags );
+        if (strpos($current_tags, 'takealot') !== false) {
+
+            $myrep = "true";
+        }
+        else{
+            $myrep = "false";
+        }
         if ($MarketplacegenieTakealotTagExport = "on") {
-            logFile(' Marketplacegenie Takealot Tag Export Exists = ' . in_array("takealot", $current_tags));
-            if (in_array("takealot", $current_tags)) {
+
+
+            if ($myrep == "true") {
+
                 $result = wp_remote_request( self::URL . "/offers/{$key_type}{$key}", $args );
                 // logFile('apiUpdateOffer. Get ' . self::URL . "/offers/{$key_type}{$key}");
                 // if (!is_wp_error($result)) {
@@ -621,6 +639,7 @@ class Marketplacegenie {
 
             }
         } else {
+
             $result = wp_remote_request( self::URL . "/offers/{$key_type}{$key}", $args );
             // logFile('apiUpdateOffer. Get ' . self::URL . "/offers/{$key_type}{$key}");
             // if (!is_wp_error($result)) {
