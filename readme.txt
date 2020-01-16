@@ -3,10 +3,14 @@ Contributors: marketplacegenie
 Donate link: https://www.markteplacegenie.com
 License: MIT License
 Tags: Marketplace Genie, WooCommerce, Takealot, Takealot Reseller Portal
-Stable tag: 2.1.0
+Stable tag: 2.1.1
 Requires at least: 4.9.8
-Tested up to: 5.2.2
+Tested up to: 5.3.2
 Requires PHP: 7.0
+
+Woo: 12345:342928dfsfhsf8429842374wdf4234sfd
+WC requires at least: 2.2
+WC tested up to: 2.3
 
 Seamlessly allows you to integrate your WooCommerce store with Marketplace Genie and send to Takealot Reseller Portal.
 

@@ -1,46 +1,49 @@
 <?php
 
 
+class Marketplacegenie
+{
 
-class Marketplacegenie {
-
-    public  $version            = '1.0.1';
-    const   API_KEY_PREFIX      = 'Bearer ';
-    const   OPTION_GROUP        = 'marketplacegenie-option-group';
-    const   OPTION_GROUP_SYNC   = 'marketplacegenie-option-group-sync';
+    public $version = '1.0.1';
+    const   API_KEY_PREFIX = 'Bearer ';
+    const   OPTION_GROUP = 'marketplacegenie-option-group';
+    const   OPTION_GROUP_SYNC = 'marketplacegenie-option-group-sync';
     const   OPTION_GROUP_IMPORT = 'marketplacegenie-option-group-sync-import';
-    const   URL                 = 'https://api.marketplacegenie.com/channelpartner/takealot';
-	protected $loader;
- 	protected $plugin_name;
+    const   URL = 'https://api.marketplacegenie.com/channelpartner/takealot';
+    protected $loader;
+    protected $plugin_name;
 
- 	public function __construct() {
-		if ( defined( 'MARKETPLACEGENIE_VERSION' ) ) {
-			$this->version = MARKETPLACEGENIE_VERSION;
-		}
-		$this->plugin_name = 'marketplacegenie';
+    public function __construct()
+    {
+        if (defined('MARKETPLACEGENIE_VERSION')) {
+            $this->version = MARKETPLACEGENIE_VERSION;
+        }
+        $this->plugin_name = 'marketplacegenie';
 
-		$this->load_dependencies();
-		$this->set_locale();
-		$this->define_admin_hooks();
-		$this->define_public_hooks();
+        $this->load_dependencies();
+        $this->set_locale();
+        $this->define_admin_hooks();
+        $this->define_public_hooks();
 
-	}
-    private $apiKey             =   null;
+    }
+
+    private $apiKey = null;
 
     public function init()
     {
     }
+
     public static function onOrderStatusUpdate($order_id) //status, $order_id = null, $order = null)
     {
         logFile('Start order #' . $order_id->id . ' update');
 
-        $offerAttributes    =   [
+        $offerAttributes = [
             //'price'           =>  0,
             //'rrp'             =>  0,
             //'leadtime_days'   =>  0,
-            'leadtime_stock'    =>  0,
+            'leadtime_stock' => 0,
             //'status'          =>  null,
-            'sku'               =>  null
+            'sku' => null
         ];
 
         $order = wc_get_order($order_id);
@@ -51,7 +54,7 @@ class Marketplacegenie {
                 $product = $order_item->get_product();
 
                 $offerAttributes["leadtime_stock"] = $product->get_stock_quantity();
-                $offerAttributes['sku']            = $product->get_sku();
+                $offerAttributes['sku'] = $product->get_sku();
                 $result = self::apiUpdateOffer($offerAttributes, $product->get_sku());
 
             }
@@ -60,23 +63,20 @@ class Marketplacegenie {
 
     private static function isLicensed($response)
     {
-        if (isset($response->Api) && ($response->Api == "WARN"))
-        {
+        if (isset($response->Api) && ($response->Api == "WARN")) {
             logFile('License error');
-          //  self::marketplacegenie_remove_cron_import();
-         //   self::marketplacegenie_remove_cron_export();
+            //  self::marketplacegenie_remove_cron_import();
+            //   self::marketplacegenie_remove_cron_export();
 
             return false;
-        }
-        else
-        {
+        } else {
             return true;
         }
     }
 
     private static function setProductStock($product, $offer)
     {
-        $total  =   0;
+        $total = 0;
         foreach ($offer->stock_at_takealot as $detail) {
             $total += intval($detail->quantity_available);
             $product->add_meta_data("stock_at_takealot_{$detail->warehouse->name}", $detail->quantity_available);
@@ -87,7 +87,7 @@ class Marketplacegenie {
 
     private static function updateProductStock($product, $offer)
     {
-        $total  =   0;
+        $total = 0;
         foreach ($offer->stock_at_takealot as $detail) {
             $total += intval($detail->quantity_available);
             $product->update_meta_data("stock_at_takealot_{$detail->warehouse->name}", $detail->quantity_available);
@@ -95,30 +95,31 @@ class Marketplacegenie {
 
         $product->update_meta_data("stock_at_takealot", $total);
     }
-    public static function marketplacegenie_cron_import_part(){
+
+    public static function marketplacegenie_cron_import_part()
+    {
         logFile('------Full import Page Start ----');
 
-        return ;
+        return;
         if (!Marketplacegenie::apiEnabled())
             return;
         //$startScript = microtime(); // for work pseudo cron
         //self::marketplacegenie_remove_cron_import();
-        $page       = get_option('marketplacegenie_cron_import_page') ?: 1;
-        $page_size  = get_option('marketplacegenie_cron_import_page_size') ?: 100;
+        $page = get_option('marketplacegenie_cron_import_page') ?: 1;
+        $page_size = get_option('marketplacegenie_cron_import_page_size') ?: 100;
 
         $request = self::apiOffers($page, $page_size);
         //logFile('-----*****-----');die;
 
         logFile('Start import Page ' . $page);
 
-        $pages = ceil((float) $request->total_results / (float) $request->page_size);
+        $pages = ceil((float)$request->total_results / (float)$request->page_size);
 
-        if (self::isLicensed($request))
-        {
+        if (self::isLicensed($request)) {
             try {
                 set_time_limit(500);
 
-                remove_action( 'save_post_product', 'Marketplacegenie::updateOffer' );
+                remove_action('save_post_product', 'Marketplacegenie::updateOffer');
                 foreach ($request->offers as $offer) {
                     $product_id = wc_get_product_id_by_sku($offer->sku);
                     //$product_id = wc_get_product_id_by_sku('Cross-100x180-Blue');
@@ -126,7 +127,7 @@ class Marketplacegenie {
                         //  Product exists.
                         $product = wc_get_product($product_id);
 
-                        $product->set_stock_quantity( $offer->leadtime_stock );
+                        $product->set_stock_quantity($offer->leadtime_stock);
 
                         $product->update_meta_data("tsin_id", $offer->tsin_id);
                         $product->update_meta_data("offer_id", $offer->offer_id);
@@ -138,21 +139,20 @@ class Marketplacegenie {
                         $product->update_meta_data("takealot_url", $offer->takealot_url, true);
 
                         self::updateProductStock($product, $offer);
-                        remove_action( 'admin_init', 'marketplacegenie_sync_after_update_product', 12);
+                        remove_action('admin_init', 'marketplacegenie_sync_after_update_product', 12);
 
                         $product->save();
-                    }
-                    else {
+                    } else {
                         // Create product.
                         $product = new WC_Product_Simple();
 
-                        $product->set_manage_stock( true );
-                        $product->set_name( $offer->title );
-                        $product->set_sku( $offer->sku );
-                        $product->set_price( $offer->price );
-                        $product->set_regular_price( $offer->rrp );
-                        $product->set_sale_price( $offer->price );
-                        $product->set_stock_quantity( $offer->leadtime_stock );
+                        $product->set_manage_stock(true);
+                        $product->set_name($offer->title);
+                        $product->set_sku($offer->sku);
+                        $product->set_price($offer->price);
+                        $product->set_regular_price($offer->rrp);
+                        $product->set_sale_price($offer->price);
+                        $product->set_stock_quantity($offer->leadtime_stock);
 
                         $product->add_meta_data("tsin_id", $offer->tsin_id, true);
                         $product->add_meta_data("offer_id", $offer->offer_id, true);
@@ -164,7 +164,7 @@ class Marketplacegenie {
                         $product->add_meta_data("takealot_url", $offer->takealot_url, true);
 
                         self::setProductStock($product, $offer);
-                        remove_action( 'admin_init', 'marketplacegenie_sync_after_update_product', 12);
+                        remove_action('admin_init', 'marketplacegenie_sync_after_update_product', 12);
 
                         $product->save();
                     }
@@ -175,19 +175,16 @@ class Marketplacegenie {
                 logFile($request);
                 logFile('Server API answer ');
 
-                add_action( 'save_post_product', 'Marketplacegenie::updateOffer' );
+                add_action('save_post_product', 'Marketplacegenie::updateOffer');
 
-                if (++$page <= $pages)
-                {
+                if (++$page <= $pages) {
                     //Save data for next part import
                     update_option('marketplacegenie_cron_import_page', $page);
                     update_option('marketplacegenie_cron_import_page_size', $request->page_size);
 
                     logFile('___________________ End import part ' . --$page . ' / ' . $pages . ' ___________________');
 
-                }
-                else
-                {
+                } else {
                     //Cron import success
                     logFile('================== Cron import success ==================');
                     self::marketplacegenie_remove_cron_import();
@@ -209,6 +206,7 @@ class Marketplacegenie {
         //wp_remote_post(site_url());
 
     }
+
     //Deprecated
 
     public static function onSynchronizeProducts()
@@ -216,8 +214,8 @@ class Marketplacegenie {
         if (!Marketplacegenie::apiEnabled())
             return;
 
-        $page   = 1;
-        $pages  = 0;
+        $page = 1;
+        $pages = 0;
         $count_product_sync = 0;
         $request = self::apiOffers($page, 100);
         //var_dump($offer);die;
@@ -229,7 +227,7 @@ class Marketplacegenie {
             // page_size
             // page_number
             // total_results
-            $pages = ceil((float) $request->total_results / (float) $request->page_size);
+            $pages = ceil((float)$request->total_results / (float)$request->page_size);
 
             do {
                 logFile('Page size = ' . $request->page_size);
@@ -242,7 +240,7 @@ class Marketplacegenie {
                         //  Product exists.
                         $product = wc_get_product($product_id);
 
-                        $product->set_stock_quantity( $offer->leadtime_stock );
+                        $product->set_stock_quantity($offer->leadtime_stock);
 
                         $product->update_meta_data("tsin_id", $offer->tsin_id);
                         $product->update_meta_data("offer_id", $offer->offer_id);
@@ -254,21 +252,20 @@ class Marketplacegenie {
                         $product->update_meta_data("takealot_url", $offer->takealot_url, true);
 
                         self::updateProductStock($product, $offer);
-                        remove_action( 'admin_init', 'marketplacegenie_sync_after_update_product', 12);
+                        remove_action('admin_init', 'marketplacegenie_sync_after_update_product', 12);
 
                         $product->save();
-                    }
-                    else {
+                    } else {
                         // Create product.
                         $product = new WC_Product_Simple();
 
-                        $product->set_manage_stock( true );
-                        $product->set_name( $offer->title );
-                        $product->set_sku( $offer->sku );
-                        $product->set_price( $offer->price );
-                        $product->set_regular_price( $offer->rrp );
-                        $product->set_sale_price( $offer->price );
-                        $product->set_stock_quantity( $offer->leadtime_stock );
+                        $product->set_manage_stock(true);
+                        $product->set_name($offer->title);
+                        $product->set_sku($offer->sku);
+                        $product->set_price($offer->price);
+                        $product->set_regular_price($offer->rrp);
+                        $product->set_sale_price($offer->price);
+                        $product->set_stock_quantity($offer->leadtime_stock);
 
                         $product->add_meta_data("tsin_id", $offer->tsin_id, true);
                         $product->add_meta_data("offer_id", $offer->offer_id, true);
@@ -280,7 +277,7 @@ class Marketplacegenie {
                         $product->add_meta_data("takealot_url", $offer->takealot_url, true);
 
                         self::setProductStock($product, $offer);
-                        remove_action( 'admin_init', 'marketplacegenie_sync_after_update_product', 12);
+                        remove_action('admin_init', 'marketplacegenie_sync_after_update_product', 12);
 
                         $product->save();
                     }
@@ -295,7 +292,7 @@ class Marketplacegenie {
                     }
 
                 }
-            } while($page <= $pages);
+            } while ($page <= $pages);
         }
         logFile('Synchronized product = ' . $count_product_sync);
         return $count_product_sync;
@@ -313,24 +310,26 @@ class Marketplacegenie {
 
         $LicenseStatus = false;
 
-        $apiKey     = get_option('marketplacegenie_api_key');
-        $args       =   array(
-            'headers'       =>  array(
-                "Authorization" =>  self::API_KEY_PREFIX . $apiKey,
-                'Content-type' => 'application/json' )
+        $apiKey = get_option('marketplacegenie_api_key');
+        $args = array(
+            'headers' => array(
+                "Authorization" => self::API_KEY_PREFIX . $apiKey,
+                'Content-type' => 'application/json')
         );
 
         if (!$apiKey)
             return;
 
         $result = wp_remote_get(self::URL . '/status', $args);
-
-        if (is_array($result) && array_key_exists('response', $result) && (intval($result['response']['code']) == 200))
-        {
+        if (is_array($result) && array_key_exists('response', $result) && (intval($result['response']['code']) == 200)) {
             $result = json_decode($result["body"]);
 
-            if ($result->LicenseStatus)
-                $LicenseStatus = $result->LicenseStatus;
+
+            if ($result->license_status == "OK") {
+                $LicenseStatus = true;
+            }
+
+         //   logFile('validateApiKey. LicenseStatus ' . $LicenseStatus);
         }
 
         if (!$LicenseStatus) {
@@ -340,22 +339,24 @@ class Marketplacegenie {
                      <p>Marketplacegenie API key is not valid</p>
                  </div>';
             }
+
             add_action('admin_notices', 'general_admin_notice');
         }
 
         return $LicenseStatus;
     }
+
     public static function validateApiKey($apiKey = false)
     {
         if (!Marketplacegenie::apiEnabled())
             return;
 
-        $apiKey     = $apiKey ?: get_option('marketplacegenie_api_key');
-        $validate   = false;
-        $args       = array(
-            'headers'       =>  array(
-                'Authorization' =>  self::API_KEY_PREFIX . $apiKey,
-                'Content-type'  => 'application/json' )
+        $apiKey = $apiKey ?: get_option('marketplacegenie_api_key');
+        $validate = false;
+        $args = array(
+            'headers' => array(
+                'Authorization' => self::API_KEY_PREFIX . $apiKey,
+                'Content-type' => 'application/json')
         );
 
         if (!$apiKey)
@@ -363,44 +364,38 @@ class Marketplacegenie {
 
         $result = wp_remote_get(self::URL . '/status', $args);
 
-        logFile('validateApiKey. Get ' . self::URL . '/status');
+       // logFile('validateApiKey. Get ' . self::URL . '/status');
 
         if (is_array($result) && array_key_exists('response', $result) && (intval($result['response']['code']) == 200)) {
             $result = json_decode($result["body"]);
 
-            if ($result->LicenseStatus){
+            if ($result->license_status == "OK") {
+                if ($result->license_status == "OK") {
+                    $LicenseStatus = true;
+                }
+
                 $validate['status'] = '<span style="position: absolute; color: green">Valid</span>';
 
-                if (property_exists($result, 'Expires'))
-                {
-                    if ($result->Expires)
-                    {
+                if (property_exists($result, 'Expires')) {
+                    if ($result->Expires) {
                         $dteStart = new DateTime('now');
-                        $dteEnd   = new DateTime($result->Expires);
+                        $dteEnd = new DateTime($result->Expires);
                         $dteDiff = $dteStart->diff($dteEnd);
 
-                        if ( $dteDiff->invert == 0)
-                        {
+                        if ($dteDiff->invert == 0) {
                             $validate['expire'] = 'License key is Valid for ' . $dteDiff->format("%d") . ' Days';
-                        }
-                        else
-                        {
+                        } else {
                             $validate['expire'] = 'License key is Expired';
                         }
                     }
-                }
-                else {
+                } else {
                     $validate['expire'] = 'License key is Valid';
                 }
-            }
-            else
-            {
+            } else {
                 $validate['status'] = '<span style="position: absolute; color: red">Not Valid</span>';
                 $validate['expire'] = 'License key is Incorrect';
             }
-        }
-        else
-        {
+        } else {
             $validate['status'] = '<span style="position: absolute; color: red">Not Valid</span>';
             $validate['expire'] = 'License key is Incorrect';
         }
@@ -411,52 +406,50 @@ class Marketplacegenie {
     public static function updateOffer($id)
     {
 
-        if (!Marketplacegenie::apiEnabled()){    return; }
-
-
-        $marketplacegenie_takealot_cron         = esc_attr(get_option('marketplacegenie_takealot_cron'));
-        $marketplacegenie_sync_manual_price     = esc_attr(get_option('marketplacegenie_sync_manual_price'));
-        $marketplacegenie_sync_manual_inventory = esc_attr(get_option('marketplacegenie_sync_manual_inventory'));
-        $TERate   = esc_attr(get_option('marketplacegenie_takealot_exchange_rate'));
-        $TFRate   = esc_attr(get_option('marketplacegenie_takealot_fixed_rate'));
-        $Tagexport  = esc_attr(get_option('marketplacegenie_takealot_tag_export'));
-        if(is_numeric ($TERate))
-        {
-           if($TERate == 0){$TERate  =1; }
-        }else
-        {
-            $TERate= 1;
+        if (!Marketplacegenie::apiEnabled()) {
+            return;
         }
-        if(is_numeric ($TFRate))
-        {
-            if($TFRate == 0){$TFRate  =0; }
-        }else
-        {
-            $TFRate= 0;
+
+
+        $marketplacegenie_takealot_cron = esc_attr(get_option('marketplacegenie_takealot_cron'));
+        $marketplacegenie_sync_manual_price = esc_attr(get_option('marketplacegenie_sync_manual_price'));
+        $marketplacegenie_sync_manual_inventory = esc_attr(get_option('marketplacegenie_sync_manual_inventory'));
+        $TERate = esc_attr(get_option('marketplacegenie_takealot_exchange_rate'));
+        $TFRate = esc_attr(get_option('marketplacegenie_takealot_fixed_rate'));
+        $Tagexport = esc_attr(get_option('marketplacegenie_takealot_tag_export'));
+        if (is_numeric($TERate)) {
+            if ($TERate == 0) {
+                $TERate = 1;
+            }
+        } else {
+            $TERate = 1;
+        }
+        if (is_numeric($TFRate)) {
+            if ($TFRate == 0) {
+                $TFRate = 0;
+            }
+        } else {
+            $TFRate = 0;
         }
         $result = false;
         $offerAttributes = array();
         $product = wc_get_product($id);
 
-        if (($product != null) && ($product != false))
-        {
+        if (($product != null) && ($product != false)) {
             $offerAttributes = array();
-            if ($marketplacegenie_takealot_cron || $marketplacegenie_sync_manual_price)
-            {
+            if ($marketplacegenie_takealot_cron || $marketplacegenie_sync_manual_price) {
 
-               $offerAttributes['price']          = ceil(($product->get_price()  + $TFRate )* $TERate);
+                $offerAttributes['price'] = ceil(($product->get_price() + $TFRate) * $TERate);
 
-               $offerAttributes['rrp']            = ceil(($product->get_regular_price() + $TFRate ) * $TERate);
-
+                $offerAttributes['rrp'] = ceil(($product->get_regular_price() + $TFRate) * $TERate);
 
 
             }
-            if ($marketplacegenie_takealot_cron || $marketplacegenie_sync_manual_inventory)
-            {
-                $offerAttributes['leadtime_days']  = 4;
+            if ($marketplacegenie_takealot_cron || $marketplacegenie_sync_manual_inventory) {
+                $offerAttributes['leadtime_days'] = 4;
                 $offerAttributes['leadtime_stock'] = $product->get_stock_quantity();
-                $offerAttributes['status']         = $product->get_status() == 'publish' ? 'Active' : 'Inactive';
-                $offerAttributes['sku']            = $product->get_sku();
+                $offerAttributes['status'] = $product->get_status() == 'publish' ? 'Active' : 'Inactive';
+                $offerAttributes['sku'] = $product->get_sku();
             }
             if (!$offerAttributes)
                 return;
@@ -511,25 +504,25 @@ class Marketplacegenie {
                     $offerAttributes['sku'] = $product->get_sku();
                     //logFile('-------'.$offerAttributes['sku']);continue;
 
-                            if ($offerAttributes['sku']) {
-                                $result = self::apiUpdateOffer($offerAttributes, $product->get_sku());
-                                if (!$result) {
-                                    logFile('Update product with SKU = ' . $product->get_sku() . ' is failed');
+                    if ($offerAttributes['sku']) {
+                        $result = self::apiUpdateOffer($offerAttributes, $product->get_sku());
+                        if (!$result) {
+                            logFile('Update product with SKU = ' . $product->get_sku() . ' is failed');
 
-                                }
-                            } else {
-                                logFile('Update product "' . $product->get_title() . '" id = ' . $product->get_id() . ' no have SKU');
-                            }
-
-
-                        if ($offerAttributes['sku']) {
-                            $result = self::apiUpdateOffer($offerAttributes, $product->get_sku());
-                            if (!$result) {
-                                logFile('Update product with SKU = ' . $product->get_sku() . ' is failed');
-                            }
-                        } else {
-                            logFile('Update product "' . $product->get_title() . '" id = ' . $product->get_id() . ' no have SKU');
                         }
+                    } else {
+                        logFile('Update product "' . $product->get_title() . '" id = ' . $product->get_id() . ' no have SKU');
+                    }
+
+
+                    if ($offerAttributes['sku']) {
+                        $result = self::apiUpdateOffer($offerAttributes, $product->get_sku());
+                        if (!$result) {
+                            logFile('Update product with SKU = ' . $product->get_sku() . ' is failed');
+                        }
+                    } else {
+                        logFile('Update product "' . $product->get_title() . '" id = ' . $product->get_id() . ' no have SKU');
+                    }
 
 
                 }
@@ -568,46 +561,48 @@ class Marketplacegenie {
 
     private static function apiUpdateOffer($offerAttributes, $key, $key_type = 'SKU')
     {
-        if (!Marketplacegenie::apiEnabled())
-        { return;  }
-        $MarketplacegenieTakealotTagExport = get_option('marketplacegenie_takealot_tag_export');
+        if (!Marketplacegenie::apiEnabled()) {
+            return;
+        }
+
         //$key                    = 'AFT0655'; //test
         //$offerAttributes['sku'] = $key;      //test
 
-        $result     =   false;
-        $args       =   array(
-            'method'    =>  'PATCH',
-            'headers'   =>  array(
-                "Authorization" =>  self::API_KEY_PREFIX . get_option('marketplacegenie_api_key'),
-                "Content-type"  =>  'application/json' ),
-            'body'      =>  json_encode($offerAttributes)
+        $result = false;
+        $args = array(
+            'method' => 'PATCH',
+            'headers' => array(
+                "Authorization" => self::API_KEY_PREFIX . get_option('marketplacegenie_api_key'),
+                "Content-type" => 'application/json'),
+            'body' => json_encode($offerAttributes)
         );
         $result = false;
         $xid = wc_get_product_id_by_sku($key);
         $imploedtags = "";
-        $current_tags = get_the_terms( $xid, 'product_tag' );
-        if ( $current_tags && ! is_wp_error( $current_tags ) ) {
-              foreach ($current_tags as $tag) {
+        $current_tags = get_the_terms($xid, 'product_tag');
+        if ($current_tags && !is_wp_error($current_tags)) {
+            foreach ($current_tags as $tag) {
 
                 $tag_title = $tag->name; // tag name
-                $tag_link = get_term_link( $tag );// tag archive link
+                $tag_link = get_term_link($tag);// tag archive link
                 $imploedtags = $imploedtags . $tag_title . " , ";
-             }
-         }
-        $current_tags =  strtolower( $imploedtags );
+            }
+        }
+        $current_tags = strtolower($imploedtags);
         if (strpos($current_tags, 'takealot') !== false) {
 
             $myrep = "true";
-        }
-        else{
+        } else {
             $myrep = "false";
         }
-        if ($MarketplacegenieTakealotTagExport = "on") {
+        $MarketplacegenieTakealotTagExport = get_option('marketplacegenie_takealot_tag_export');
+
+        if ($MarketplacegenieTakealotTagExport == "on") {
 
 
             if ($myrep == "true") {
 
-                $result = wp_remote_request( self::URL . "/offers/{$key_type}{$key}", $args );
+                $result = wp_remote_request(self::URL . "/offers/{$key_type}{$key}", $args);
                 // logFile('apiUpdateOffer. Get ' . self::URL . "/offers/{$key_type}{$key}");
                 // if (!is_wp_error($result)) {
                 if (is_array($result) && array_key_exists('response', $result) && (intval($result['response']['code']) == 200)) {
@@ -617,21 +612,18 @@ class Marketplacegenie {
                     $data = json_decode($body, true);
                     $status = $data['status'];
                     $sku = $key;
-                    if($status =="Success")
-                    {
+                    if ($status == "Success") {
                         $offer = $data['offer'];
                         $actions = $data['actions'];
 
-                        $message = "apiUpdateOffer   " . $status . "   ". $sku   .  "  ". implode(" ,  ",$actions) ;
-                    }
-                    else{
-                        $message = "apiUpdateOffer   " . $status . "   ". $sku   .  "  Failed" ;
+                        $message = "apiUpdateOffer   " . $status . "   " . $sku . "  " . implode(" ,  ", $actions);
+                    } else {
+                        $message = "apiUpdateOffer   " . $status . "   " . $sku . "  Failed";
                     }
 
                     logFile($message);
                     $result = true;
-                }
-                else {
+                } else {
                     $result = false;
                     logFile('Update failed.. SKU = ' . $key);
                 }
@@ -640,7 +632,7 @@ class Marketplacegenie {
             }
         } else {
 
-            $result = wp_remote_request( self::URL . "/offers/{$key_type}{$key}", $args );
+            $result = wp_remote_request(self::URL . "/offers/{$key_type}{$key}", $args);
             // logFile('apiUpdateOffer. Get ' . self::URL . "/offers/{$key_type}{$key}");
             // if (!is_wp_error($result)) {
             if (is_array($result) && array_key_exists('response', $result) && (intval($result['response']['code']) == 200)) {
@@ -650,26 +642,22 @@ class Marketplacegenie {
                 $data = json_decode($body, true);
                 $status = $data['status'];
                 $sku = $key;
-                if($status =="Success")
-                {
+                if ($status == "Success") {
                     $offer = $data['offer'];
                     $actions = $data['actions'];
 
-                    $message = "apiUpdateOffer   " . $status . "   ". $sku   .  "  ". implode(" ,  ",$actions) ;
-                }
-                else{
-                    $message = "apiUpdateOffer   " . $status . "   ". $sku   .  "  Failed" ;
+                    $message = "apiUpdateOffer   " . $status . "   " . $sku . "  " . implode(" ,  ", $actions);
+                } else {
+                    $message = "apiUpdateOffer   " . $status . "   " . $sku . "  Failed";
                 }
 
                 logFile($message);
                 $result = true;
-            }
-            else {
+            } else {
                 $result = false;
                 logFile('Update failed.. SKU = ' . $key);
             }
         }
-
 
 
         // }
@@ -679,17 +667,18 @@ class Marketplacegenie {
     public static function apiOffers($page = 1, $page_size = 100)
     {
 
-        if (!Marketplacegenie::apiEnabled())
-        {return; }
+        if (!Marketplacegenie::apiEnabled()) {
+            return;
+        }
 
-        $result     =   false;
-        $args       =   array(
-            'method'    =>  'GET',
-            'timeout'     => 4,
-            'body'      =>  null,
-            'headers'   =>  array(
-                "Authorization" =>  self::API_KEY_PREFIX . get_option('marketplacegenie_api_key'),
-                "Content-type"  =>  'application/json' ),
+        $result = false;
+        $args = array(
+            'method' => 'GET',
+            'timeout' => 4,
+            'body' => null,
+            'headers' => array(
+                "Authorization" => self::API_KEY_PREFIX . get_option('marketplacegenie_api_key'),
+                "Content-type" => 'application/json'),
             //'body'      =>  null // json_encode([ "page" => $page, "page_size" => $size ])
         );
 
@@ -700,6 +689,7 @@ class Marketplacegenie {
 
         return $result;
     }
+
     public static function marketplacegenie_remove_cron_import()
     {
         update_option('marketplacegenie_last_full_import', (int)strtotime('now'));
@@ -707,7 +697,7 @@ class Marketplacegenie {
         update_option('marketplacegenie_cron_import_page_size', '');
         update_option('marketplacegenie_cron_import_enable', 0);
 
-        wp_clear_scheduled_hook( 'marketplacegenie_do_cron_in_progress_import_hook' );
+        wp_clear_scheduled_hook('marketplacegenie_do_cron_in_progress_import_hook');
     }
 
     public static function marketplacegenie_remove_cron_export()
@@ -721,65 +711,73 @@ class Marketplacegenie {
         update_option('marketplacegenie_takealot_cron_export', '');
         update_option('marketplacegenie_export_time', '');
 
-        wp_clear_scheduled_hook( 'marketplacegenie_do_cron_in_progress_export_hook' );
+        wp_clear_scheduled_hook('marketplacegenie_do_cron_in_progress_export_hook');
     }
 
-	private function load_dependencies() {
+    private function load_dependencies()
+    {
 
-         require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-marketplacegenie-loader.php';
-         require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-marketplacegenie-i18n.php';
-         require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-marketplacegenie-admin.php';
-         require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-marketplacegenie-public.php';
+        require_once plugin_dir_path(dirname(__FILE__)) . 'includes/class-marketplacegenie-loader.php';
+        require_once plugin_dir_path(dirname(__FILE__)) . 'includes/class-marketplacegenie-i18n.php';
+        require_once plugin_dir_path(dirname(__FILE__)) . 'admin/class-marketplacegenie-admin.php';
+        require_once plugin_dir_path(dirname(__FILE__)) . 'public/class-marketplacegenie-public.php';
 
-		$this->loader = new Marketplacegenie_Loader();
+        $this->loader = new Marketplacegenie_Loader();
 
-	}
-
-
-	private function set_locale() {
-
-		$plugin_i18n = new Marketplacegenie_i18n();
-
-		$this->loader->add_action( 'plugins_loaded', $plugin_i18n, 'load_plugin_textdomain' );
-
-	}
-
-	private function define_admin_hooks() {
-
-		$plugin_admin = new Marketplacegenie_Admin( $this->get_plugin_name(), $this->get_version() );
-
-		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
-		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
-
-	}
+    }
 
 
-	private function define_public_hooks() {
+    private function set_locale()
+    {
 
-		$plugin_public = new Marketplacegenie_Public( $this->get_plugin_name(), $this->get_version() );
+        $plugin_i18n = new Marketplacegenie_i18n();
 
-		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_styles' );
-		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_scripts' );
+        $this->loader->add_action('plugins_loaded', $plugin_i18n, 'load_plugin_textdomain');
 
-	}
+    }
 
+    private function define_admin_hooks()
+    {
 
-	public function run() {
-		$this->loader->run();
-	}
+        $plugin_admin = new Marketplacegenie_Admin($this->get_plugin_name(), $this->get_version());
 
-	public function get_plugin_name() {
-		return $this->plugin_name;
-	}
+        $this->loader->add_action('admin_enqueue_scripts', $plugin_admin, 'enqueue_styles');
+        $this->loader->add_action('admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts');
 
-
-	public function get_loader() {
-		return $this->loader;
-	}
+    }
 
 
-	public function get_version() {
-		return $this->version;
-	}
+    private function define_public_hooks()
+    {
+
+        $plugin_public = new Marketplacegenie_Public($this->get_plugin_name(), $this->get_version());
+
+        $this->loader->add_action('wp_enqueue_scripts', $plugin_public, 'enqueue_styles');
+        $this->loader->add_action('wp_enqueue_scripts', $plugin_public, 'enqueue_scripts');
+
+    }
+
+
+    public function run()
+    {
+        $this->loader->run();
+    }
+
+    public function get_plugin_name()
+    {
+        return $this->plugin_name;
+    }
+
+
+    public function get_loader()
+    {
+        return $this->loader;
+    }
+
+
+    public function get_version()
+    {
+        return $this->version;
+    }
 
 }
